@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/SleepWlaker/GoTerminalIndicator/internal/term"
 	"github.com/VictorLowther/btree"
+	"github.com/nsf/termbox-go"
 )
 
 // 订单条目
@@ -35,14 +37,42 @@ func NewOrderbook() *Orderbook {
 }
 
 func (ob *Orderbook) HandleDepthResponse(result BinanceDepthResult) {
-	for _, ask := range result.Asks {
+	for _, ask := range result.Asks { // 价格
 		price, _ := strconv.ParseFloat(ask[0], 64)
 		volume, _ := strconv.ParseFloat(ask[1], 64)
+		if volume == 0 {
+			continue
+		}
+
 		entry := &OrderbookEntry{
 			Price:  price,
 			Volume: volume,
 		}
+		ob.Asks.Insert(entry) // 插入
+	}
 
-		fmt.Printf("%+v\n", entry)
+	for _, bid := range result.Bids { // 数量
+		price, _ := strconv.ParseFloat(bid[0], 64)
+		volume, _ := strconv.ParseFloat(bid[1], 64)
+		if volume == 0 {
+			continue
+		}
+
+		entry := &OrderbookEntry{
+			Price:  price,
+			Volume: volume,
+		}
+		ob.Bids.Insert(entry) // 插入
+	}
+}
+
+func (ob *Orderbook) Render(x, y int) {
+	iter := ob.Asks.Iterator(nil, nil)
+	i := 0
+	for iter.Next() {
+		item := iter.Item()
+		price := fmt.Sprintf("%.2f", item.Price)
+		term.RenderText(x, y+i, price, termbox.ColorGreen)
+		i++
 	}
 }
