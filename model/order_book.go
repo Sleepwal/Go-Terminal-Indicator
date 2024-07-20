@@ -1,78 +1,87 @@
 package model
 
 import (
-	"fmt"
+	"sort"
 	"strconv"
-
-	"github.com/SleepWlaker/GoTerminalIndicator/term"
-	"github.com/VictorLowther/btree"
-	"github.com/nsf/termbox-go"
 )
-
-// 订单条目
-type OrderbookEntry struct {
-	Price  float64 // 价格
-	Volume float64 // 数量
-}
 
 // 订单
 type Orderbook struct {
-	Asks *btree.Tree[*OrderbookEntry] // 卖单
-	Bids *btree.Tree[*OrderbookEntry] // 买单
-}
-
-func byBestBid(a, b *OrderbookEntry) bool {
-	return a.Price >= b.Price
-}
-
-func byBestAsk(a, b *OrderbookEntry) bool {
-	return a.Price < b.Price
+	Asks map[float64]float64 // 卖单
+	Bids map[float64]float64 // 买单
 }
 
 func NewOrderbook() *Orderbook {
 	return &Orderbook{
-		Asks: btree.New(byBestAsk),
-		Bids: btree.New(byBestBid),
+		Asks: make(map[float64]float64),
+		Bids: make(map[float64]float64),
 	}
 }
 
-func (ob *Orderbook) HandleDepthResponse(result BinanceDepthResult) {
-	for _, ask := range result.Asks { // 价格
-		price, _ := strconv.ParseFloat(ask[0], 64)
-		volume, _ := strconv.ParseFloat(ask[1], 64)
-		if volume == 0 {
-			continue
-		}
-
-		entry := &OrderbookEntry{
-			Price:  price,
-			Volume: volume,
-		}
-		ob.Asks.Insert(entry) // 插入
+func (ob *Orderbook) HandleDepthResponse(asks, bids []any) {
+	for _, v := range asks { // 价格
+		ask := v.([]any)
+		price, _ := strconv.ParseFloat(ask[0].(string), 64)
+		volume, _ := strconv.ParseFloat(ask[1].(string), 64)
+		ob.addAsk(price, volume)
 	}
 
-	for _, bid := range result.Bids { // 数量
-		price, _ := strconv.ParseFloat(bid[0], 64)
-		volume, _ := strconv.ParseFloat(bid[1], 64)
-		if volume == 0 {
-			continue
-		}
-
-		entry := &OrderbookEntry{
-			Price:  price,
-			Volume: volume,
-		}
-		ob.Bids.Insert(entry) // 插入
+	for _, v := range bids { // 数量
+		bid := v.([]any)
+		price, _ := strconv.ParseFloat(bid[0].(string), 64)
+		volume, _ := strconv.ParseFloat(bid[1].(string), 64)
+		ob.addBid(price, volume)
 	}
 }
 
-func (ob *Orderbook) Render(x, y int) {
-	iter := ob.Asks.Iterator(nil, nil)
+func (ob *Orderbook) addAsk(price, volume float64) {
+	if volume == 0 {
+		delete(ob.Asks, price)
+		return
+	}
+	ob.Asks[price] = volume
+}
+
+func (ob *Orderbook) addBid(price, volume float64) {
+	if volume == 0 {
+		delete(ob.Bids, price)
+		return
+	}
+	ob.Bids[price] = volume
+}
+
+func (ob *Orderbook) getAsks() []OrderbookEntry {
+	depth := 10
+	entries := make(byBestAsk, len(ob.Asks))
 	i := 0
-	for iter.Next() {
-		item := iter.Item()
-		price := fmt.Sprintf("%.2f", item.Price)
-		term.RenderText(x, y+i, price, termbox.ColorGreen)
+	for price, volume := range ob.Asks {
+		entries[i] = OrderbookEntry{Price: price, Volume: volume}
 		i++
 	}
+
+	sort.Sort(entries)
+	if len(entries) > depth { // 深度超过depth舍弃
+		entries = entries[:depth]
+	}
+	return entries
+}
+
+func (ob *Orderbook) getBids() []OrderbookEntry {
+	depth := 10
+	entries := make(byBestBid, len(ob.Bids))
+	i := 0
+	for price, volume := range ob.Bids {
+		if volume == 0 {
+			continue
+		}
+
+		entries[i] = OrderbookEntry{Price: price, Volume: volume}
+		i++
+	}
+
+	sort.Sort(entries)
+	if len(entries) > depth { // 深度超过depth舍弃
+		entries = entries[:depth]
+	}
+	return entries
 }
