@@ -3,10 +3,10 @@ package main
 import (
 	"log"
 
-	"github.com/SleepWlaker/GoTerminalIndicator/internal"
+	"github.com/SleepWlaker/GoTerminalIndicator/server"
 )
 
 func main() {
-	s := internal.NewServer()
+	s := server.NewServer()
 	log.Fatal(s.Run())
 }

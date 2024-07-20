@@ -50,7 +50,7 @@ func (ob *Orderbook) addBid(price, volume float64) {
 	ob.Bids[price] = volume
 }
 
-func (ob *Orderbook) getAsks() []OrderbookEntry {
+func (ob *Orderbook) GetAsks() []OrderbookEntry {
 	depth := 10
 	entries := make(byBestAsk, len(ob.Asks))
 	i := 0
@@ -66,7 +66,7 @@ func (ob *Orderbook) getAsks() []OrderbookEntry {
 	return entries
 }
 
-func (ob *Orderbook) getBids() []OrderbookEntry {
+func (ob *Orderbook) GetBids() []OrderbookEntry {
 	depth := 10
 	entries := make(byBestBid, len(ob.Bids))
 	i := 0

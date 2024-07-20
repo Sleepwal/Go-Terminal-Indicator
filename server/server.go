@@ -2,11 +2,12 @@ package server
 
 import (
 	"log"
-	"time"
+	"strconv"
 
+	"github.com/SleepWlaker/GoTerminalIndicator/glabol"
 	"github.com/SleepWlaker/GoTerminalIndicator/model"
+	"github.com/SleepWlaker/GoTerminalIndicator/term"
 	"github.com/gorilla/websocket"
-	"github.com/nsf/termbox-go"
 )
 
 type Server struct{}
@@ -17,47 +18,57 @@ func NewServer() *Server {
 
 // 币安行情信息websocket地址
 const (
-	wsEndpoint = "wss://fstream.binance.com/stream?streams=btcusdt@depth"
+	wsEndpoint     = "wss://fstream.binance.com/stream?streams=btcusdt@depth"
+	wsEndpointMark = "wss://fstream.binance.com/stream?streams=btcusdt@markPrice"
+)
+
+var (
+	WIDTH  = 0
+	HEIGHT = 0
 )
 
 func (s *Server) Run() error {
-	termbox.Init()
+	var (
+		ob     = model.NewOrderbook()
+		result map[string]any
+	)
 
 	conn, _, err := websocket.DefaultDialer.Dial(wsEndpoint, nil)
 	if err != nil {
 		return err
 	}
 
-	var (
-		ob  = model.NewOrderbook()
-		res model.BinanceDepthRespnese
-	)
-
 	go func() {
 		for {
-			if err := conn.ReadJSON(&res); err != nil {
+			if err := conn.ReadJSON(&result); err != nil {
 				log.Fatal(err)
 			}
-			ob.HandleDepthResponse(res.Data)
-			// iter := ob.Asks.Iterator(nil, nil)
-			// for iter.Next() {
-			// 	fmt.Printf("%+v\n", iter.Item())
-			// }
-			time.Sleep(time.Second * 2)
+
+			data := result["data"].(map[string]any)
+			asks := data["a"].([]any)
+			bids := data["b"].([]any)
+			ob.HandleDepthResponse(asks, bids)
 		}
 	}()
 
-	isRunning := true
+	connMark, _, err := websocket.DefaultDialer.Dial(wsEndpointMark, nil)
+	if err != nil {
+		return err
+	}
 	go func() {
-		time.Sleep(time.Second * 5)
-		isRunning = false
+		for {
+			if err := connMark.ReadJSON(&result); err != nil {
+				log.Fatal(err)
+			}
+
+			glabol.PrevMarkPrice = glabol.CurrMarkPrice
+			data := result["data"].(map[string]any)
+			priceStr := data["p"].(string)
+			glabol.FundingRate = data["r"].(string)
+			glabol.CurrMarkPrice, _ = strconv.ParseFloat(priceStr, 64)
+		}
 	}()
 
-	for isRunning {
-		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-		ob.Render(0, 0)
-		termbox.Flush()
-	}
-
+	term.RenderUI(ob)
 	return nil
 }
