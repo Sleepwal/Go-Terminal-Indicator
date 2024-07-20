@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/SleepWlaker/GoTerminalIndicator/internal/term"
+	"github.com/SleepWlaker/GoTerminalIndicator/term"
 	"github.com/VictorLowther/btree"
 	"github.com/nsf/termbox-go"
 )

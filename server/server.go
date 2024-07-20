@@ -1,10 +1,10 @@
-package internal
+package server
 
 import (
 	"log"
 	"time"
 
-	"github.com/SleepWlaker/GoTerminalIndicator/internal/model"
+	"github.com/SleepWlaker/GoTerminalIndicator/model"
 	"github.com/gorilla/websocket"
 	"github.com/nsf/termbox-go"
 )
